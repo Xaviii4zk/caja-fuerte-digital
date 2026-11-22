@@ -1,0 +1,401 @@
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #edf2ff;
+  background: #101827;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1c3151 0, #101827 48%);
+}
+
+button, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.contenedor {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.panel {
+  width: 100%;
+  max-width: 760px;
+  padding: 34px;
+  background: #1b2638;
+  border: 1px solid #34445d;
+  border-radius: 18px;
+  box-shadow: 0 18px 55px #0005;
+}
+
+.panel-login {
+  max-width: 490px;
+  text-align: center;
+}
+
+.etiqueta {
+  margin: 0 0 10px;
+  color: #65d8e8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+h1, h2, p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 12px;
+  font-size: clamp(28px, 5vw, 42px);
+}
+
+h2 {
+  font-size: 20px;
+}
+
+.subtitulo, .bienvenida p {
+  color: #b9c5d8;
+  line-height: 1.6;
+}
+
+.icono-caja {
+  margin: 20px auto;
+  color: #65d8e8;
+  font-size: 54px;
+}
+
+.reglas {
+  margin: 28px 0;
+  padding: 20px;
+  text-align: left;
+  background: #111b2b;
+  border-radius: 12px;
+  line-height: 1.6;
+}
+
+.reglas p, .ayuda {
+  margin-bottom: 0;
+  color: #bdc9dc;
+}
+
+.boton {
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 18px;
+  font-weight: 700;
+  transition: transform .15s, opacity .15s;
+}
+
+.boton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.boton-google {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  color: #182235;
+  background: #fff;
+}
+
+.google-letra {
+  color: #4285f4;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.mensaje {
+  min-height: 24px;
+  margin: 16px 0 0;
+  color: #bdc9dc;
+  line-height: 1.5;
+}
+
+.cabecera {
+  min-height: 76px;
+  padding: 14px max(24px, calc((100% - 1100px) / 2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: #111b2b;
+  border-bottom: 1px solid #34445d;
+}
+
+.marca {
+  color: #edf2ff;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-decoration: none;
+}
+
+.marca:first-letter {
+  color: #65d8e8;
+}
+
+.usuario {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nombre-usuario {
+  max-width: 230px;
+  overflow-wrap: anywhere;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.boton-secundario {
+  color: #dbeafe;
+  background: #34445d;
+}
+
+.contenido {
+  width: min(900px, calc(100% - 36px));
+  margin: 45px auto;
+}
+
+.bienvenida {
+  margin-bottom: 28px;
+}
+
+.bienvenida h1 {
+  margin-bottom: 8px;
+}
+
+.pestanas {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pestana {
+  padding: 11px 18px;
+  color: #cbd5e1;
+  background: #1b2638;
+  border: 1px solid #34445d;
+  border-radius: 9px 9px 0 0;
+}
+
+.pestana.activa {
+  color: #101827;
+  background: #65d8e8;
+  border-color: #65d8e8;
+  font-weight: 800;
+}
+
+.panel-juego {
+  max-width: 650px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.numero-grande {
+  color: #65d8e8;
+  font-size: 62px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.texto-intentos {
+  margin: 8px 0 25px;
+  color: #aab8cc;
+  font-size: 14px;
+}
+
+.instruccion {
+  color: #e5edf8;
+  line-height: 1.5;
+}
+
+.formulario-numero {
+  max-width: 390px;
+  margin: 25px auto 0;
+  text-align: left;
+}
+
+.formulario-numero label {
+  display: block;
+  margin-bottom: 8px;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.fila-formulario {
+  display: flex;
+  gap: 9px;
+}
+
+.fila-formulario input {
+  width: 100%;
+  min-width: 0;
+  padding: 13px;
+  color: #fff;
+  background: #111b2b;
+  border: 1px solid #52627a;
+  border-radius: 9px;
+}
+
+.boton-principal {
+  color: #10202e;
+  background: #65d8e8;
+}
+
+.acciones {
+  margin-top: 18px;
+}
+
+.nota-puntuacion {
+  margin: 25px 0 0;
+  color: #93a4bc;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pista {
+  color: #f6d27a;
+}
+
+.exito {
+  color: #7ce0a3;
+}
+
+.error {
+  color: #ff9292;
+}
+
+.panel-historial {
+  max-width: 900px;
+}
+
+.cabecera-historial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.total-partidas {
+  color: #65d8e8;
+  font-weight: 700;
+}
+
+.tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th, td {
+  padding: 13px 10px;
+  border-bottom: 1px solid #34445d;
+  white-space: nowrap;
+}
+
+th {
+  color: #9fb0c8;
+  font-size: 13px;
+}
+
+td {
+  color: #e5edf8;
+  font-size: 14px;
+}
+
+.resultado {
+  color: #7ce0a3;
+}
+
+.oculto {
+  display: none;
+}
+
+footer {
+  padding: 20px;
+  color: #8192aa;
+  text-align: center;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .contenedor {
+    padding: 16px;
+  }
+
+  .panel {
+    padding: 23px 18px;
+  }
+
+  .cabecera {
+    align-items: flex-start;
+    padding: 14px 16px;
+  }
+
+  .usuario {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+  }
+
+  .nombre-usuario {
+    max-width: 145px;
+    font-size: 12px;
+  }
+
+  .contenido {
+    margin: 30px auto;
+  }
+
+  .fila-formulario {
+    flex-direction: column;
+  }
+
+  .fila-formulario .boton {
+    width: 100%;
+  }
+
+  .cabecera-historial {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  th, td {
+    padding: 11px 8px;
+    font-size: 12px;
+  }
+}
