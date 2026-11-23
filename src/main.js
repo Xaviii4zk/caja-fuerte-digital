@@ -1,342 +1,614 @@
+
 import { createClient } from '@supabase/supabase-js';
 import './style.css';
-
-const app = document.querySelector('#app');
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let supabase;
 let usuario = null;
-let numeroSecreto = 0;
+
+let habitacionActual = 0;
+let vidas = 3;
+let puntuacion = 1000;
+let tiempoRestante = 600;
 let intentos = 0;
-let inicioPartida = 0;
+let pistasUtilizadas = 0;
+let cifras = [];
+
 let partidaActiva = false;
+let continuarPendiente = false;
+let pistaUtilizadaEnSala = false;
 let guardandoPartida = false;
 
-function mostrarConfiguracion() {
-  app.innerHTML = `
-    <main class="contenedor">
-      <section class="panel">
-        <p class="etiqueta">CAJA FUERTE DIGITAL</p>
-        <h1>Configuración pendiente</h1>
-        <p>Antes de iniciar la aplicación, configura las variables de Supabase en el archivo <strong>.env</strong>.</p>
-        <p class="ayuda">Copia .env.example como .env y añade la URL del proyecto y la clave pública (anon/publishable) de Supabase.</p>
-      </section>
-    </main>
-  `;
+let temporizador;
+
+// ENIGMAS
+
+const habitaciones = [
+    {
+        titulo: 'HABITACIÓN 1 - EL CÓDIGO',
+        descripcion: 'El primer panel de seguridad está bloqueado.',
+        enigma: `
+            <p>Observa la secuencia:</p>
+            <h2>1 - 3 - 5 - ?</h2>
+            <p>¿Qué número continúa la secuencia?</p>
+            <p>La respuesta será la primera cifra del código final.</p>
+        `,
+        respuestas: ['7'],
+        cifra: '7',
+        pista: 'Los números aumentan de dos en dos.',
+        tipo: 'numero'
+    },
+
+    {
+        titulo: 'HABITACIÓN 2 - LÓGICA',
+        descripcion: 'Un ordenador bloquea la puerta con una secuencia matemática.',
+        enigma: `
+            <p>Descifra la secuencia:</p>
+            <h2>2 - 6 - 12 - 20 - 30 - ?</h2>
+            <p>¿Cuál es el siguiente número?</p>
+            <p>Suma las cifras del resultado para conseguir la segunda cifra.</p>
+        `,
+        respuestas: ['42'],
+        cifra: '6',
+        pista: 'Las diferencias son 4, 6, 8, 10... ¿Cuál será la siguiente diferencia?',
+        tipo: 'numero'
+    },
+
+    {
+        titulo: 'HABITACIÓN 3 - EL ACERTIJO',
+        descripcion: 'Una voz aparece en el sistema de comunicación.',
+        enigma: `
+            <p>Resuelve el acertijo:</p>
+            <h2>Cuanto más calor recibo, más pequeño me hago.</h2>
+            <p>¿Qué soy?</p>
+            <p>El número de letras de la respuesta será la tercera cifra.</p>
+        `,
+        respuestas: ['hielo'],
+        cifra: '5',
+        pista: 'Soy agua congelada.',
+        tipo: 'texto'
+    },
+
+    {
+        titulo: 'HABITACIÓN 4 - LOS COLORES',
+        descripcion: 'El panel de colores controla el acceso a la última sala.',
+        enigma: `
+            <p>Observa el patrón:</p>
+            <h2>ROJO - AZUL - ROJO - AZUL - ROJO - ?</h2>
+            <p>¿Qué color continúa?</p>
+            <p>El número de letras de la respuesta será la cuarta cifra.</p>
+        `,
+        respuestas: ['azul'],
+        cifra: '4',
+        pista: 'Solo aparecen dos colores alternándose.',
+        tipo: 'texto'
+    }
+];
+
+// NORMALIZAR RESPUESTAS
+
+function normalizarRespuesta(respuesta) {
+    return respuesta
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
 }
 
-function escaparHTML(valor) {
-  return String(valor ?? '').replace(/[&<>"']/g, caracter => {
-    const equivalencias = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-    return equivalencias[caracter];
-  });
-}
-
-function mostrarLogin() {
-  app.innerHTML = `
-    <main class="contenedor">
-      <section class="panel panel-login">
-        <p class="etiqueta">CAJA FUERTE DIGITAL</p>
-        <div class="icono-caja">▣</div>
-        <h1>Adivina el número</h1>
-        <p class="subtitulo">Descubre el número secreto y consigue la mejor puntuación.</p>
-        <div class="reglas">
-          <h2>¿Cómo se juega?</h2>
-          <p>Piensa que hay un número secreto entre 1 y 100. Escribe un número y te diremos si el secreto es mayor o menor. ¡Intenta acertarlo en el menor número de intentos!</p>
-        </div>
-        <button id="entrarGoogle" class="boton boton-google">
-          <span class="google-letra">G</span> Entrar con Google
-        </button>
-        <p id="mensajeLogin" class="mensaje" aria-live="polite"></p>
-      </section>
-    </main>
-  `;
-
-  document.querySelector('#entrarGoogle').addEventListener('click', iniciarSesionGoogle);
-}
+// INICIAR SESIÓN
 
 async function iniciarSesionGoogle() {
-  const mensaje = document.querySelector('#mensajeLogin');
-  const boton = document.querySelector('#entrarGoogle');
-  boton.disabled = true;
-  mensaje.textContent = 'Conectando con Google...';
-
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin
+    if (!supabase) {
+        return;
     }
-  });
 
-  if (error) {
-    mensaje.textContent = 'No se ha podido iniciar sesión: ' + error.message;
-    boton.disabled = false;
-  }
-}
-
-function mostrarAplicacion() {
-  const nombre = usuario.user_metadata?.full_name || usuario.user_metadata?.name || usuario.email;
-  const foto = usuario.user_metadata?.avatar_url;
-
-  app.innerHTML = `
-    <header class="cabecera">
-      <a class="marca" href="#" aria-label="Inicio">▣ <span>CAJA FUERTE</span></a>
-      <div class="usuario">
-        ${foto ? `<img class="avatar" src="${escaparHTML(foto)}" alt="">` : ''}
-        <span class="nombre-usuario">${escaparHTML(nombre)}</span>
-        <button id="cerrarSesion" class="boton boton-secundario">Salir</button>
-      </div>
-    </header>
-
-    <main class="contenido">
-      <section class="bienvenida">
-        <p class="etiqueta">TU RETO</p>
-        <h1>Adivina el número</h1>
-        <p>Encuentra el número secreto entre <strong>1 y 100</strong>.</p>
-      </section>
-
-      <nav class="pestanas" aria-label="Secciones">
-        <button class="pestana activa" id="pestanaJuego">Jugar</button>
-        <button class="pestana" id="pestanaHistorial">Mi historial</button>
-      </nav>
-
-      <section id="zonaJuego" class="panel panel-juego">
-        <div class="numero-grande" id="numeroIntentos">0</div>
-        <p class="texto-intentos">intentos realizados</p>
-        <p id="instruccion" class="instruccion">Pulsa el botón para comenzar una partida.</p>
-        <form id="formularioNumero" class="formulario-numero">
-          <label for="numeroUsuario">Tu número</label>
-          <div class="fila-formulario">
-            <input id="numeroUsuario" type="number" min="1" max="100" placeholder="Del 1 al 100" disabled required>
-            <button class="boton boton-principal" id="probarNumero" type="submit" disabled>Probar</button>
-          </div>
-        </form>
-        <p id="mensajeJuego" class="mensaje" aria-live="polite"></p>
-        <div class="acciones">
-          <button id="nuevaPartida" class="boton boton-principal">Nueva partida</button>
-        </div>
-        <p class="nota-puntuacion">Puntuación: 100 puntos al primer intento. Se restan 10 puntos por cada intento adicional, hasta un mínimo de 10.</p>
-      </section>
-
-      <section id="zonaHistorial" class="panel panel-historial oculto">
-        <div class="cabecera-historial">
-          <div>
-            <p class="etiqueta">TUS RESULTADOS</p>
-            <h2>Historial de partidas</h2>
-          </div>
-          <button id="actualizarHistorial" class="boton boton-secundario">Actualizar</button>
-        </div>
-        <p id="totalPartidas" class="total-partidas">Cargando partidas...</p>
-        <div class="tabla-contenedor">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Resultado</th>
-                <th>Puntos</th>
-                <th>Duración</th>
-              </tr>
-            </thead>
-            <tbody id="filasHistorial">
-              <tr><td colspan="4">Cargando...</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p id="mensajeHistorial" class="mensaje" aria-live="polite"></p>
-      </section>
-    </main>
-    <footer>Una partida nueva, una oportunidad más.</footer>
-  `;
-
-  document.querySelector('#cerrarSesion').addEventListener('click', cerrarSesion);
-  document.querySelector('#nuevaPartida').addEventListener('click', nuevaPartida);
-  document.querySelector('#formularioNumero').addEventListener('submit', comprobarNumero);
-  document.querySelector('#pestanaJuego').addEventListener('click', mostrarZonaJuego);
-  document.querySelector('#pestanaHistorial').addEventListener('click', mostrarZonaHistorial);
-  document.querySelector('#actualizarHistorial').addEventListener('click', cargarHistorial);
-
-  cargarHistorial();
-}
-
-function mostrarZonaJuego() {
-  document.querySelector('#zonaJuego').classList.remove('oculto');
-  document.querySelector('#zonaHistorial').classList.add('oculto');
-  document.querySelector('#pestanaJuego').classList.add('activa');
-  document.querySelector('#pestanaHistorial').classList.remove('activa');
-}
-
-async function mostrarZonaHistorial() {
-  document.querySelector('#zonaJuego').classList.add('oculto');
-  document.querySelector('#zonaHistorial').classList.remove('oculto');
-  document.querySelector('#pestanaJuego').classList.remove('activa');
-  document.querySelector('#pestanaHistorial').classList.add('activa');
-  await cargarHistorial();
-}
-
-function nuevaPartida() {
-  numeroSecreto = Math.floor(Math.random() * 100) + 1;
-  intentos = 0;
-  inicioPartida = Date.now();
-  partidaActiva = true;
-  guardandoPartida = false;
-
-  document.querySelector('#numeroIntentos').textContent = intentos;
-  document.querySelector('#instruccion').textContent = 'Ya tienes un número secreto. ¡Intenta descubrirlo!';
-  document.querySelector('#mensajeJuego').textContent = '';
-  document.querySelector('#numeroUsuario').disabled = false;
-  document.querySelector('#probarNumero').disabled = false;
-  document.querySelector('#numeroUsuario').value = '';
-  document.querySelector('#numeroUsuario').focus();
-}
-
-async function comprobarNumero(evento) {
-  evento.preventDefault();
-
-  if (!partidaActiva || guardandoPartida) {
-    return;
-  }
-
-  const campoNumero = document.querySelector('#numeroUsuario');
-  const numero = Number(campoNumero.value);
-  const mensaje = document.querySelector('#mensajeJuego');
-
-  if (!Number.isInteger(numero) || numero < 1 || numero > 100) {
-    mensaje.textContent = 'Escribe un número entero entre 1 y 100.';
-    return;
-  }
-
-  intentos++;
-  document.querySelector('#numeroIntentos').textContent = intentos;
-
-  if (numero < numeroSecreto) {
-    mensaje.textContent = 'El número secreto es MAYOR. ¡Prueba otra vez!';
-    mensaje.className = 'mensaje pista';
-  } else if (numero > numeroSecreto) {
-    mensaje.textContent = 'El número secreto es MENOR. ¡Prueba otra vez!';
-    mensaje.className = 'mensaje pista';
-  } else {
-    partidaActiva = false;
-    guardandoPartida = true;
-    campoNumero.disabled = true;
-    document.querySelector('#probarNumero').disabled = true;
-
-    const puntuacion = Math.max(10, 100 - ((intentos - 1) * 10));
-    const duracion = Math.max(0, Math.floor((Date.now() - inicioPartida) / 1000));
-
-    mensaje.textContent = `¡Correcto! Has encontrado el número ${numeroSecreto} en ${intentos} intento(s). Has conseguido ${puntuacion} puntos.`;
-    mensaje.className = 'mensaje exito';
-    document.querySelector('#instruccion').textContent = '¡Partida completada! Puedes comenzar otra cuando quieras.';
-
-    await guardarPartida(puntuacion, duracion);
-    guardandoPartida = false;
-  }
-
-  campoNumero.value = '';
-  if (partidaActiva) {
-    campoNumero.focus();
-  }
-}
-
-async function guardarPartida(puntuacion, duracion) {
-  const { error } = await supabase
-    .from('partidas')
-    .insert({
-      resultado: 'Victoria',
-      puntuacion: puntuacion,
-      duracion: duracion,
-      intentos: intentos
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin
+        }
     });
 
-  if (error) {
-    document.querySelector('#mensajeJuego').textContent += ' ATENCIÓN: no se ha podido guardar la partida. ' + error.message;
-    document.querySelector('#mensajeJuego').className = 'mensaje error';
-  } else {
-    await cargarHistorial();
-  }
+    if (error) {
+        document.querySelector('#estadoLogin').textContent =
+            'Error al iniciar sesión: ' + error.message;
+    }
 }
 
-async function cargarHistorial() {
-  const filas = document.querySelector('#filasHistorial');
-  const total = document.querySelector('#totalPartidas');
-  const mensaje = document.querySelector('#mensajeHistorial');
-
-  filas.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
-  mensaje.textContent = '';
-
-  const { data, error } = await supabase
-    .from('partidas')
-    .select('id, fecha, resultado, puntuacion, duracion')
-    .order('fecha', { ascending: false });
-
-  if (error) {
-    filas.innerHTML = '<tr><td colspan="4">No se ha podido cargar el historial.</td></tr>';
-    total.textContent = 'No se ha podido consultar el total.';
-    mensaje.textContent = error.message;
-    return;
-  }
-
-  total.textContent = `Total de partidas jugadas: ${data.length}`;
-
-  if (data.length === 0) {
-    filas.innerHTML = '<tr><td colspan="4">Todavía no has terminado ninguna partida.</td></tr>';
-    return;
-  }
-
-  filas.innerHTML = data.map(partida => {
-    const fecha = new Date(partida.fecha).toLocaleString('es-ES');
-    const duracion = `${partida.duracion} s`;
-    return `
-      <tr>
-        <td>${escaparHTML(fecha)}</td>
-        <td><span class="resultado">${escaparHTML(partida.resultado)}</span></td>
-        <td>${escaparHTML(partida.puntuacion)}</td>
-        <td>${escaparHTML(duracion)}</td>
-      </tr>
-    `;
-  }).join('');
-}
+// CERRAR SESIÓN
 
 async function cerrarSesion() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    alert('No se ha podido cerrar la sesión: ' + error.message);
-  }
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+        alert('Error al cerrar sesión: ' + error.message);
+    }
 }
+
+// ACTUALIZAR USUARIO
+
+function actualizarUsuario() {
+    const login = document.querySelector('#login');
+    const logout = document.querySelector('#logout');
+    const nuevaPartida = document.querySelector('#nuevaPartida');
+    const nombreUsuario = document.querySelector('#nombreUsuario');
+
+    if (usuario) {
+        login.hidden = true;
+        logout.hidden = false;
+        nuevaPartida.disabled = false;
+
+        if (nombreUsuario) {
+            nombreUsuario.textContent =
+                usuario.user_metadata?.full_name ||
+                usuario.user_metadata?.name ||
+                usuario.email;
+        }
+
+    } else {
+        login.hidden = false;
+        logout.hidden = true;
+        nuevaPartida.disabled = true;
+
+        if (nombreUsuario) {
+            nombreUsuario.textContent = '';
+        }
+
+        document.querySelector('#listaHistorial').innerHTML =
+            '<p>Inicia sesión para consultar tus partidas.</p>';
+    }
+}
+
+// INICIAR PARTIDA
+
+function nuevaPartida() {
+    if (!usuario) {
+        alert('Primero debes iniciar sesión con Google.');
+        return;
+    }
+
+    clearInterval(temporizador);
+
+    habitacionActual = 0;
+    vidas = 3;
+    puntuacion = 1000;
+    tiempoRestante = 600;
+    intentos = 0;
+    pistasUtilizadas = 0;
+    cifras = [];
+
+    partidaActiva = true;
+    continuarPendiente = false;
+    pistaUtilizadaEnSala = false;
+    guardandoPartida = false;
+
+    document.querySelector('#inicio').hidden = true;
+    document.querySelector('#juego').hidden = false;
+    document.querySelector('#final').hidden = true;
+
+    actualizarEstadisticas();
+    mostrarHabitacion();
+
+    temporizador = setInterval(() => {
+        tiempoRestante--;
+
+        actualizarEstadisticas();
+
+        if (tiempoRestante <= 0) {
+            finalizarPartida(false, 'Se ha agotado el tiempo.');
+        }
+    }, 1000);
+}
+
+// ACTUALIZAR ESTADÍSTICAS
+
+function actualizarEstadisticas() {
+    const minutos = Math.floor(tiempoRestante / 60);
+    const segundos = tiempoRestante % 60;
+
+    document.querySelector('#tiempo').textContent =
+        `${minutos}:${String(segundos).padStart(2, '0')}`;
+
+    document.querySelector('#vidas').textContent =
+        '❤️'.repeat(vidas) + '🖤'.repeat(3 - vidas);
+
+    document.querySelector('#puntuacion').textContent = puntuacion;
+
+    document.querySelector('#habitacion').textContent =
+        `${habitacionActual + 1} / 5`;
+}
+
+// MOSTRAR HABITACIÓN
+
+function mostrarHabitacion() {
+    continuarPendiente = false;
+    pistaUtilizadaEnSala = false;
+
+    const titulo = document.querySelector('#tituloSala');
+    const descripcion = document.querySelector('#descripcionSala');
+    const enigma = document.querySelector('#enigma');
+    const mensaje = document.querySelector('#mensaje');
+    const respuesta = document.querySelector('#respuestaUsuario');
+    const comprobar = document.querySelector('#comprobar');
+    const pista = document.querySelector('#pista');
+
+    mensaje.textContent = '';
+    mensaje.className = '';
+
+    respuesta.disabled = false;
+    respuesta.value = '';
+    comprobar.disabled = false;
+    comprobar.textContent = 'COMPROBAR';
+
+    pista.disabled = false;
+    pista.hidden = false;
+    pista.textContent = 'SOLICITAR PISTA (-50 PUNTOS)';
+
+    if (habitacionActual < 4) {
+        const sala = habitaciones[habitacionActual];
+
+        titulo.textContent = sala.titulo;
+        descripcion.textContent = sala.descripcion;
+        enigma.innerHTML = sala.enigma;
+
+    } else {
+        titulo.textContent = 'HABITACIÓN 5 - ESCAPE FINAL';
+        descripcion.textContent =
+            'Has conseguido las cuatro cifras. Introduce el código para desbloquear la salida.';
+
+        enigma.innerHTML = `
+            <h2>EL CÓDIGO FINAL</h2>
+            <p>Introduce las cuatro cifras que has conseguido en las habitaciones anteriores.</p>
+            <p>El orden importa.</p>
+        `;
+    }
+
+    respuesta.focus();
+
+    actualizarEstadisticas();
+}
+
+// COMPROBAR RESPUESTA
+
+function comprobarRespuesta() {
+    if (!partidaActiva || guardandoPartida) {
+        return;
+    }
+
+    if (continuarPendiente) {
+        continuarHabitacion();
+        return;
+    }
+
+    const campo = document.querySelector('#respuestaUsuario');
+    const respuesta = normalizarRespuesta(campo.value);
+
+    if (respuesta === '') {
+        document.querySelector('#mensaje').textContent =
+            'Escribe una respuesta antes de comprobarla.';
+        return;
+    }
+
+    intentos++;
+
+    if (habitacionActual < 4) {
+        comprobarEnigma(respuesta);
+    } else {
+        comprobarCodigoFinal(respuesta);
+    }
+}
+
+// COMPROBAR ENIGMA
+
+function comprobarEnigma(respuesta) {
+    const sala = habitaciones[habitacionActual];
+
+    const correcto = sala.respuestas.some(
+        solucion => normalizarRespuesta(solucion) === respuesta
+    );
+
+    if (correcto) {
+        resolverHabitacion(sala.cifra);
+    } else {
+        respuestaIncorrecta();
+    }
+}
+
+// RESOLVER HABITACIÓN
+
+function resolverHabitacion(cifra) {
+    cifras.push(cifra);
+
+    const mensaje = document.querySelector('#mensaje');
+    const respuesta = document.querySelector('#respuestaUsuario');
+    const comprobar = document.querySelector('#comprobar');
+    const pista = document.querySelector('#pista');
+
+    mensaje.textContent =
+        `¡Correcto! Has conseguido la cifra ${cifra}. Pulsa CONTINUAR para avanzar.`;
+
+    mensaje.className = 'exito';
+
+    respuesta.disabled = true;
+    comprobar.textContent = 'CONTINUAR';
+    pista.disabled = true;
+
+    continuarPendiente = true;
+}
+
+// CONTINUAR A LA SIGUIENTE HABITACIÓN
+
+function continuarHabitacion() {
+    habitacionActual++;
+
+    if (habitacionActual >= 5) {
+        mostrarHabitacion();
+        return;
+    }
+
+    mostrarHabitacion();
+}
+
+// COMPROBAR CÓDIGO FINAL
+
+function comprobarCodigoFinal(respuesta) {
+    const codigo = cifras.join('');
+
+    if (respuesta === codigo) {
+        finalizarPartida(true, '¡Has desbloqueado la salida del laboratorio!');
+    } else {
+        respuestaIncorrecta();
+    }
+}
+
+// RESPUESTA INCORRECTA
+
+function respuestaIncorrecta() {
+    vidas--;
+    puntuacion = Math.max(0, puntuacion - 100);
+
+    const mensaje = document.querySelector('#mensaje');
+
+    mensaje.textContent =
+        `Respuesta incorrecta. Pierdes una vida y 100 puntos. Te quedan ${vidas} vidas.`;
+
+    mensaje.className = 'error';
+
+    document.querySelector('#respuestaUsuario').value = '';
+
+    actualizarEstadisticas();
+
+    if (vidas <= 0) {
+        finalizarPartida(false, 'Te has quedado sin vidas. El laboratorio te ha atrapado.');
+    }
+}
+
+// SOLICITAR PISTA
+
+function solicitarPista() {
+    if (!partidaActiva || guardandoPartida || pistaUtilizadaEnSala) {
+        return;
+    }
+
+    pistaUtilizadaEnSala = true;
+    pistasUtilizadas++;
+
+    puntuacion = Math.max(0, puntuacion - 50);
+
+    const mensaje = document.querySelector('#mensaje');
+
+    if (habitacionActual < 4) {
+        mensaje.textContent = habitaciones[habitacionActual].pista;
+    } else {
+        mensaje.textContent =
+            'Recuerda: las cuatro cifras están en el orden en el que las conseguiste.';
+    }
+
+    mensaje.className = 'pista';
+
+    document.querySelector('#pista').disabled = true;
+
+    actualizarEstadisticas();
+}
+
+// FINALIZAR PARTIDA
+
+async function finalizarPartida(victoria, texto) {
+    if (guardandoPartida || !partidaActiva) {
+        return;
+    }
+
+    partidaActiva = false;
+    guardandoPartida = true;
+
+    clearInterval(temporizador);
+
+    if (victoria) {
+        puntuacion += tiempoRestante * 2;
+    }
+
+    document.querySelector('#juego').hidden = true;
+    document.querySelector('#final').hidden = false;
+
+    document.querySelector('#tituloFinal').textContent =
+        victoria ? '¡ESCAPASTE!' : 'MISIÓN FALLIDA';
+
+    document.querySelector('#mensajeFinal').textContent = texto;
+
+    document.querySelector('#puntuacionFinal').textContent =
+        `Puntuación final: ${puntuacion} puntos`;
+
+    await guardarPartida(victoria);
+
+    guardandoPartida = false;
+}
+
+// GUARDAR PARTIDA EN SUPABASE
+
+async function guardarPartida(victoria) {
+    const duracion = 600 - tiempoRestante;
+
+    const { error } = await supabase
+        .from('partidas')
+        .insert({
+            user_id: usuario.id,
+            resultado: victoria ? 'Victoria' : 'Derrota',
+            puntuacion: puntuacion,
+            duracion: duracion,
+            intentos: intentos
+        });
+
+    if (error) {
+        document.querySelector('#mensajeFinal').textContent +=
+            ' No se ha podido guardar la partida: ' + error.message;
+    } else {
+        await cargarHistorial();
+    }
+}
+
+// CARGAR HISTORIAL
+
+async function cargarHistorial() {
+    const lista = document.querySelector('#listaHistorial');
+
+    if (!usuario) {
+        lista.innerHTML = '<p>Inicia sesión para consultar tu historial.</p>';
+        return;
+    }
+
+    lista.innerHTML = '<p>Cargando partidas...</p>';
+
+    const { data, error } = await supabase
+        .from('partidas')
+        .select('id, fecha, resultado, puntuacion, duracion, intentos')
+        .order('fecha', { ascending: false });
+
+    if (error) {
+        lista.innerHTML =
+            '<p>No se ha podido cargar el historial: ' +
+            escaparHTML(error.message) + '</p>';
+
+        return;
+    }
+
+    if (data.length === 0) {
+        lista.innerHTML = '<p>Todavía no has jugado ninguna partida.</p>';
+        return;
+    }
+
+    lista.innerHTML = data.map(partida => {
+        const fecha = new Date(partida.fecha).toLocaleString('es-ES');
+
+        const minutos = Math.floor(partida.duracion / 60);
+        const segundos = partida.duracion % 60;
+
+        const duracion =
+            `${minutos}:${String(segundos).padStart(2, '0')}`;
+
+        return `
+            <div>
+                <h3>${escaparHTML(partida.resultado)}</h3>
+                <p>Fecha: ${escaparHTML(fecha)}</p>
+                <p>Puntuación: ${escaparHTML(partida.puntuacion)}</p>
+                <p>Duración: ${escaparHTML(duracion)}</p>
+                <p>Intentos: ${escaparHTML(partida.intentos)}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+// ESCAPAR HTML
+
+function escaparHTML(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, caracter => {
+        const equivalencias = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+
+        return equivalencias[caracter];
+    });
+}
+
+// VOLVER AL INICIO
+
+function volverInicio() {
+    clearInterval(temporizador);
+
+    partidaActiva = false;
+    guardandoPartida = false;
+
+    document.querySelector('#final').hidden = true;
+    document.querySelector('#juego').hidden = true;
+    document.querySelector('#inicio').hidden = false;
+
+    actualizarEstadisticas();
+}
+
+// CONFIGURAR EVENTOS
+
+document.querySelector('#login').addEventListener('click', iniciarSesionGoogle);
+
+document.querySelector('#logout').addEventListener('click', cerrarSesion);
+
+document.querySelector('#nuevaPartida').addEventListener('click', nuevaPartida);
+
+document.querySelector('#comprobar').addEventListener('click', comprobarRespuesta);
+
+document.querySelector('#pista').addEventListener('click', solicitarPista);
+
+document.querySelector('#volverInicio').addEventListener('click', volverInicio);
+
+document.querySelector('#respuestaUsuario').addEventListener('keydown', evento => {
+    if (evento.key === 'Enter') {
+        comprobarRespuesta();
+    }
+});
+
+// INICIAR APLICACIÓN
 
 async function iniciarAplicacion() {
-  if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('TU-PROYECTO')) {
-    mostrarConfiguracion();
-    return;
-  }
+    const login = document.querySelector('#login');
+    const nuevaPartida = document.querySelector('#nuevaPartida');
 
-  supabase = createClient(supabaseUrl, supabaseKey);
+    if (!supabaseUrl || !supabaseKey) {
+        document.querySelector('#estadoLogin').textContent =
+            'Configuración de Supabase pendiente.';
 
-  const { data: { session } } = await supabase.auth.getSession();
-  usuario = session?.user ?? null;
+        login.disabled = true;
+        nuevaPartida.disabled = true;
 
-  if (usuario) {
-    mostrarAplicacion();
-  } else {
-    mostrarLogin();
-  }
-
-  supabase.auth.onAuthStateChange((_evento, sessionActual) => {
-    usuario = sessionActual?.user ?? null;
-    if (usuario) {
-      mostrarAplicacion();
-    } else {
-      partidaActiva = false;
-      mostrarLogin();
+        return;
     }
-  });
+
+    supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    usuario = session?.user ?? null;
+
+    actualizarUsuario();
+
+    if (usuario) {
+        cargarHistorial();
+    }
+
+    supabase.auth.onAuthStateChange((_evento, sessionActual) => {
+        usuario = sessionActual?.user ?? null;
+
+        actualizarUsuario();
+
+        if (usuario) {
+            cargarHistorial();
+        }
+    });
 }
+
+// INICIO
 
 iniciarAplicacion();

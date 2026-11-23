@@ -1,13 +1,125 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#101827">
-    <title>Adivina el número | Caja fuerte digital</title>
-  </head>
-  <body>
-    <div id="app"></div>
+    <title>Protocolo Zero | Escape Room</title>
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+
+    <div id="app">
+
+        <header>
+            <h1>PROTOCOLO ZERO</h1>
+            <p>Escape Room Digital</p>
+
+          <div id="usuario">
+              <span id="nombreUsuario"></span>
+              <p id="estadoLogin"></p>
+              <button id="login">Iniciar sesión con Google</button>
+              <button id="logout" hidden>Cerrar sesión</button>
+          </div>
+        </header>
+
+        <main>
+
+            <section id="inicio">
+
+                <h2>EL LABORATORIO ESTÁ EN LOCKDOWN</h2>
+
+                <p>
+                    Has despertado en un laboratorio desconocido.
+                    El sistema de seguridad ha bloqueado todas las salidas.
+                    Tienes 10 minutos para resolver los enigmas y escapar.
+                </p>
+
+                <p>Dispones de 3 vidas. Cada error te acerca al fracaso.</p>
+
+                <button id="nuevaPartida">INICIAR MISIÓN</button>
+
+            </section>
+
+            <section id="juego" hidden>
+
+                <div id="estadisticas">
+
+                    <div>
+                        <p>TIEMPO</p>
+                        <h2 id="tiempo">10:00</h2>
+                    </div>
+
+                    <div>
+                        <p>VIDAS</p>
+                        <h2 id="vidas">❤️❤️❤️</h2>
+                    </div>
+
+                    <div>
+                        <p>PUNTUACIÓN</p>
+                        <h2 id="puntuacion">1000</h2>
+                    </div>
+
+                    <div>
+                        <p>HABITACIÓN</p>
+                        <h2 id="habitacion">1 / 5</h2>
+                    </div>
+
+                </div>
+
+                <div id="sala">
+
+                    <h2 id="tituloSala"></h2>
+
+                    <p id="descripcionSala"></p>
+
+                    <div id="enigma"></div>
+
+                    <div id="respuesta">
+
+                        <input
+                            type="text"
+                            id="respuestaUsuario"
+                            placeholder="Introduce tu respuesta"
+                            autocomplete="off"
+                        >
+
+                        <button id="comprobar">COMPROBAR</button>
+
+                    </div>
+
+                    <p id="mensaje"></p>
+
+                    <button id="pista">SOLICITAR PISTA (-50 PUNTOS)</button>
+
+                </div>
+
+            </section>
+
+            <section id="final" hidden>
+
+                <h2 id="tituloFinal"></h2>
+
+                <p id="mensajeFinal"></p>
+
+                <h3 id="puntuacionFinal"></h3>
+
+                <button id="volverInicio">VOLVER AL INICIO</button>
+
+            </section>
+
+            <section id="historial">
+
+                <h2>MIS MISIONES</h2>
+
+                <div id="listaHistorial"></div>
+
+            </section>
+
+        </main>
+
+    </div>
+
     <script type="module" src="/src/main.js"></script>
-  </body>
+
+</body>
 </html>
